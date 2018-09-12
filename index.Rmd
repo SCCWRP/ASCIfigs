@@ -1,0 +1,103 @@
+---
+title: "Algal Stream Condition Index "
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+self_contained: yes
+runtime: shiny
+---
+
+```{r setup, warning = F, message = F, cache = T, echo = F}
+knitr::opts_chunk$set(echo = F, warning = F, message = F, fig.pat = 'fig/')
+
+library(tidyverse)
+library(sf)
+library(mapview)
+library(shiny)
+
+data(ascidat)
+data(ascithr)
+data(suppdat)
+data(psa)
+
+# color palettes
+ctcol <- RColorBrewer::brewer.pal(3, 'RdYlGn') %>% 
+  rev
+tycol <- RColorBrewer::brewer.pal(9, 'PRGn') %>% 
+  rev
+ptcol <- RColorBrewer::brewer.pal(9, 'Set1')[c(1:3)]
+```
+
+### Score distributions
+
+```{r inputs}
+selectInput('thr', 'Select reference threshold:', choices = list('1%' = 0.01, '10%' = 0.1, '30%' = 0.3), selected = '0.1')
+```
+
+```{r reactives}
+# thresholds
+thrsh <- reactive({
+  
+  # input
+  thr <- input$thr %>% 
+    as.numeric
+  
+  out <- ascithr %>% 
+    filter(ptile %in% thr)
+  
+  return(out)
+  
+})
+
+# asci data joined with thresholds, pass/fail categories
+ascicat <- reactive({
+  
+  # input
+  thrsh <- thrsh()
+  
+  out <- ascidat %>% 
+    left_join(thrsh, by = c('tax', 'ind')) %>% 
+    mutate(
+      ascicat = ifelse(scr < thrsh, 'fail', 'pass')
+    )
+  
+  return(out)
+  
+})
+```
+
+
+```{r}
+renderPlot({
+
+  # input
+  ascicat <- ascicat()
+
+  # toplo 
+  toplo <- ascicat %>% 
+    filter(!is.na(sit2))
+  
+  # plot
+  p <- ggplot(ascicat, aes(x = toplo, y = scr)) + 
+    geom_boxplot(outlier.size = 1, aes(fill = sit2), alpha = 0.7) + 
+    geom_hline(aes(yintercept = thrsh)) +
+    facet_grid(ind ~ tax) +
+    scale_fill_manual(values = ctcol) +
+    scale_y_continuous('Index Score') + 
+    theme_minimal(base_family = 'serif', base_size = 16) +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1), 
+      axis.title.x = element_blank(), 
+      panel.border = element_rect(colour = 'black', fill = NA, size = 0.5), 
+      legend.position = 'none'
+    ) 
+  
+  return(p)
+  
+}, height = 600)
+```
+
+### Relationships with environmental variables
+
+### Comparisons with existing indices
