@@ -125,6 +125,13 @@ suppdat <- suppdat %>%
   filter(!is.na(val)) %>% 
   spread(var, val)
 
+# add psa data, lat, lon from suppdat to ascidat
+ascidat <- suppdat %>% 
+  select(sampleid, PSA6, lon, lat) %>% 
+  unique %>% 
+  na.omit %>% 
+  left_join(ascidat, ., by = 'sampleid')
+
 save(ascidat, file = 'data/ascidat.RData', compress = 'xz')
 save(ascithr, file = 'data/ascithr.RData', compress = 'xz')
 save(suppdat, file = 'data/suppdat.RData', compress = 'xz')
