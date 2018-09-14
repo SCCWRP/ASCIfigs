@@ -61,17 +61,14 @@ ascidat <- asciind %>%
 
 ##
 # ref percentiles
-ascithr <- ascidat %>% 
-  filter(sit1 %in% 'rc') %>% 
-  dplyr::select(sampleid, tax, ind, scr) %>% 
-  crossing(ptile = c(0.01, 0.1, 0.3)) %>% 
-  group_by(tax, ind, ptile) %>% 
-  nest %>% 
+ascithr <- read.csv('raw/BIthresholds.csv', header = T) %>% 
+  filter(!Index %in% 'CSCI') %>% 
+  separate(Index, c('ind', 'tax'), sep = '_') %>% 
   mutate(
-    thrsh = purrr::pmap(list(data, ptile), function(data, ptile) quantile(x = data$scr, probs = ptile, na.rm = T))
+    tax = factor(tax, levels = c('D', 'S', 'H'), labels = c('Diatom', 'Soft-bodied', 'Hybrid'))
   ) %>% 
-  dplyr::select(-data) %>% 
-  unnest
+  select(-ind) %>% 
+  gather('bigls', 'bival', -tax)
 
 ##
 # csci, ibi, and supporting data
