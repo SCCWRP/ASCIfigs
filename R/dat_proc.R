@@ -55,7 +55,7 @@ ascidat <- asciind %>%
     smps = gsub('^.*_.*_(.*)$', '\\1', sampleid), 
     date = lubridate::mdy(date), 
     tax = factor(tax, levels = c('diatom', 'sba', 'hybrid'), labels = c('Diatom', 'Soft-bodied', 'Hybrid')), 
-    ind = factor(ind, levels = c('oovere', 'mmi', 'asci'), labels = c('O/E', 'pMMI', 'ASCI')),
+    ind = factor(ind, levels = c('oovere', 'mmi', 'asci'), labels = c('O/E', 'MMI', 'O/E + MMI')),
     sit2 = factor(sit2, levels = c('Reference', 'Intermediate', 'Stressed'))
     )
 

@@ -31,24 +31,25 @@ data(psa)
 # crs
 prj <- '+proj=longlat +datum=WGS84 +no_defs'
 
-# color palettes
+# colors (boxplots, bi goals, scores)
 ctcol <- RColorBrewer::brewer.pal(3, 'RdYlGn') %>% 
   rev
-tycol <- RColorBrewer::brewer.pal(9, 'PRGn') %>% 
-  rev
-ptcol <- RColorBrewer::brewer.pal(9, 'Set1')[c(1:3)]
-scpal <- colorNumeric(palette = c('#d7191c', '#abd9e9', '#2c7bb6'), na.color = 'yellow', domain = ascidat$scr)
-ctpal <- colorFactor(
-  palette = ctcol[c(1, 3)],
+bicol <- ctcol[c(1, 3)]
+sccol <- c('#d7191c', '#abd9e9', '#2c7bb6')
+
+# palettes (scores, bi goals)
+scpal <- colorNumeric(palette = sccol, na.color = 'yellow', domain = ascidat$scr)
+bipal <- colorFactor(
+  palette = bicol,
   na.color = 'yellow',
-  levels = c('pass', 'fail'))
+  levels = c('met', 'not met'))
 
 # env vars to eval
 evvar <- c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL', 'XCDENMID', 'PCT_SAFN', 'SpecificConductivity_uSPercm', 'Temperature_Deg_C') 
 names(evvar) <- c('Phosphorus (mg/L)', 'Total Nitrogen (mg/L)', '% Shading', '% Sands and Fines', 'Conductivity (mS/cm)', 'Temperature (C)')
 
 # base theme
-pbase <- theme_minimal(base_family = 'serif', base_size = 14) +
+pbase <- theme_minimal(base_family = 'serif', base_size = 15) +
   theme(
     panel.border = element_rect(colour = 'black', fill = NA, size = 0.5),
     legend.position = 'top', 
@@ -72,7 +73,7 @@ thrsh <- reactive({
   
 })
 
-# asci data joined with thresholds, pass/fail categories
+# asci data joined with thresholds, met/not met categories
 # includes psa join
 ascicat <- reactive({
   
@@ -83,26 +84,22 @@ ascicat <- reactive({
   out <- ascidat %>% 
     left_join(thrsh, by = c('tax', 'ind')) %>% 
     mutate(
-      scrcat = ifelse(scr < thrsh, 'fail', 'pass')
+      scrcat = ifelse(scr < thrsh, 'not met', 'met')
     )
   
   return(out)
   
 })
 
-# map data
-mapdat <- reactive({
+# map data, static
+mapsta <- reactive({
   
   # input
-  indsel <- input$indsel
-  taxsel <- input$taxsel
   ascicat <- ascicat()
 
   # get index and taxa for mapping 
   # get most recent visit
   out <- ascicat %>% 
-    filter(tax %in% taxsel) %>% 
-    filter(ind %in% indsel) %>% 
     filter(smps == 1) %>%
     filter(!is.na(scrcat)) %>% 
     group_by(site) %>% 
@@ -113,7 +110,24 @@ mapdat <- reactive({
     mutate(
       lon = as.numeric(lon), 
       lat = as.numeric(lat)
-      ) %>% 
+      )
+  
+  return(out)
+  
+})
+
+# map data, dynamic filtered by index and taxa
+mapdyn <- reactive({
+  
+  # input
+  indsel <- input$indsel
+  taxsel <- input$taxsel
+  mapsta <- mapsta()
+  
+  # filter by index and taxa
+  out <- mapsta %>% 
+    filter(ind %in% indsel) %>% 
+    filter(tax %in% taxsel) %>% 
     st_as_sf(coords = c('lon', 'lat'), crs = prj)
   
   return(out)
@@ -150,7 +164,7 @@ cmbdat <- reactive({
 ```
 
 ```{r}
-selectInput('thr', 'Select reference threshold:', choices = list('1%' = 0.01, '10%' = 0.1, '30%' = 0.3), selected = '0.1')
+selectInput('thr', 'Select biointegrity goal:', choices = list('1% reference' = 0.01, '10%  reference' = 0.1, '30%  reference' = 0.3), selected = '0.1')
 ```
 
 ## Score distributions {.tabset}
@@ -173,7 +187,7 @@ renderPlot({
   # plot
   p <- ggplot(toplo, aes(x = sit2, y = scr)) + 
     geom_boxplot(outlier.size = 1, aes(fill = sit2), alpha = 0.7) + 
-    geom_hline(aes(yintercept = thrsh), linetype = 'dashed', colour = 'tomato1') +
+    geom_hline(aes(yintercept = thrsh), linetype = 'dashed', colour = 'tomato1', size = 1) +
     facet_grid(ind ~ tax) +
     scale_fill_manual(values = ctcol) +
     scale_y_continuous('Index Score') + 
@@ -190,10 +204,10 @@ renderPlot({
 }, height = 600)
 ```
 
-#### Index category
+#### Biointegrity goal
 
 ```{r}
-# proportion pass/fail by site type
+# proportion met/not met by site type
 renderPlot({
   
   # input
@@ -206,15 +220,15 @@ renderPlot({
       n = length(scrcat)
     ) %>% 
     ungroup %>% 
-    rename(`Index\ncategory` = scrcat) %>% 
+    rename(Goal = scrcat) %>% 
     filter(!is.na(sit2)) %>% 
-    filter(!is.na(`Index\ncategory`))
+    filter(!is.na(Goal))
   
-  p <- ggplot(toplo, aes(x = sit2, y = n, fill = `Index\ncategory`)) +
+  p <- ggplot(toplo, aes(x = sit2, y = n, fill = Goal)) +
     geom_bar(stat = 'identity', position = 'fill', colour = 'grey', alpha = 0.8, width = 0.75) + 
     facet_grid(ind ~ tax) + 
     scale_y_continuous('Proportion', expand = c(0, 0)) +
-    scale_fill_manual(values = ctcol[c(3, 1)]) + 
+    scale_fill_manual(values = bicol) + 
     theme_minimal(base_family = 'serif', base_size = 16) +
     theme(
       axis.text.x = element_text(angle = 45, hjust = 1), 
@@ -248,7 +262,7 @@ renderPlot({
   # plot
   p <- ggplot(toplo, aes(x = PSA6, y = scr)) + 
     geom_boxplot(outlier.size = 1, alpha = 0.6, fill = 'lightblue') + 
-    geom_hline(aes(yintercept = thrsh), linetype = 'dashed', colour = 'tomato1') +
+    geom_hline(aes(yintercept = thrsh), linetype = 'dashed', colour = 'tomato1', size = 1) +
     facet_grid(ind ~ tax) +
     scale_y_continuous('Index Score') + 
     theme_minimal(base_family = 'serif', base_size = 16) +
@@ -264,10 +278,10 @@ renderPlot({
 }, height = 600)
 ```
 
-#### Index category
+#### Biointegrity goal
 
 ```{r}
-# proportion pass/fail by PSA
+# proportion met/not met by PSA
 renderPlot({
   
   # input
@@ -280,15 +294,15 @@ renderPlot({
       n = length(scrcat)
     ) %>% 
     ungroup %>% 
-    rename(`Index\ncategory` = scrcat) %>% 
+    rename(Goal = scrcat) %>% 
     filter(!is.na(PSA6)) %>% 
-    filter(!is.na(`Index\ncategory`))
+    filter(!is.na(Goal))
   
-  p <- ggplot(toplo, aes(x = PSA6, y = n, fill = `Index\ncategory`)) +
+  p <- ggplot(toplo, aes(x = PSA6, y = n, fill = Goal)) +
     geom_bar(stat = 'identity', position = 'fill', colour = 'grey', alpha = 0.8, width = 0.75) + 
     facet_grid(ind ~ tax) + 
     scale_y_continuous('Proportion', expand = c(0, 0)) +
-    scale_fill_manual(values = ctcol[c(3, 1)]) + 
+    scale_fill_manual(values = bicol) + 
     theme_minimal(base_family = 'serif', base_size = 16) +
     theme(
       axis.text.x = element_text(angle = 45, hjust = 1), 
@@ -305,13 +319,68 @@ renderPlot({
 
 ```
 
-### Maps {.tabset .tabset-pills}
+### Static Maps {.tabset .tabset-pills}
+
+#### Scores
+
+```{r}
+renderPlot({
+  
+  # input
+  mapsta <- mapsta()
+
+  p <- ggplot(mapsta) + 
+    geom_sf(data = psa, fill = NA) +
+    geom_point(aes(x = lon, y = lat, colour = scr), alpha = 0.7, size = 1.5) +
+    facet_grid(ind ~ tax) +
+    coord_sf() +
+    scale_colour_gradientn('ASCI score', colors = sccol) +
+    theme_void(base_family = 'serif', base_size = 16) + 
+    theme(
+      legend.position = 'top', 
+      panel.grid.major = element_line(colour = 'transparent'), 
+      panel.grid.minor = element_line(colour = 'transparent')
+    ) +
+    guides(colour = guide_colourbar(barheight = 0.5, barwidth = 10))
+
+  return(p)
+  
+}, height = 800)
+```
+
+#### Biointegrity goal
+
+```{r}
+renderPlot({
+  
+  # input
+  mapsta <- mapsta()
+
+  p <- ggplot(mapsta) + 
+    geom_sf(data = psa, fill = NA) +
+    geom_point(aes(x = lon, y = lat, colour = scrcat), alpha = 0.7, size = 1.5) +
+    facet_grid(ind ~ tax) +
+    coord_sf() +
+    scale_colour_manual('Biointegrity goal', values = bicol) + 
+    theme_void(base_family = 'serif', base_size = 16) + 
+    theme(
+      legend.position = 'top', 
+      panel.grid.major = element_line(colour = 'transparent'), 
+      panel.grid.minor = element_line(colour = 'transparent')
+    )
+  
+  return(p)
+  
+}, height = 800)
+```
+
+### Dynamic Maps {.tabset .tabset-pills}
 
 ```{r}
 column(12, 
   
        column(6, 
-              selectInput('indsel', 'Select index:', choices = c('O/E', 'pMMI','ASCI'))
+              selectInput('indsel', 'Select index:', choices = c('O/E', 'MMI', 'O/E + MMI'))
        ),
        
        column(6, 
@@ -320,6 +389,7 @@ column(12,
   
 )
 ```
+
 #### Scores
 
 ```{r}
@@ -327,13 +397,13 @@ column(12,
 output$scrmap <- renderLeaflet({
   
   # input
-  mapdat <- mapdat()
+  mapdyn <- mapdyn()
   
   mapview(psa, fill = F, label = psa$PSA6, homebutton = F) %>% 
     .@map %>% 
     removeMouseCoordinates() %>%
     addCircleMarkers(
-      data = mapdat, 
+      data = mapdyn, 
       layerId = ~site,
       stroke = TRUE,
       color = 'black',
@@ -344,7 +414,7 @@ output$scrmap <- renderLeaflet({
       fillOpacity = 1,
       label = ~paste0(site, ' (', date, '): ', round(scr, 2), ' (', scrcat, ')')
     )  %>% 
-    addLegend("topright", pal = scpal, values = mapdat$scr,
+    addLegend("topright", pal = scpal, values = mapdyn$scr,
                 title = "Score",
                 opacity = 1
       )
@@ -354,33 +424,33 @@ output$scrmap <- renderLeaflet({
 leafletOutput('scrmap', height = 700)
 ```
 
-#### Index category
+#### Biointegrity goal
 
 ```{r}
 
-# pass/fail map
+# met/not met map
 output$catmap <- renderLeaflet({
 
   # input
-  mapdat <- mapdat()
+  mapdyn <- mapdyn()
 
   mapview(psa, fill = F, label = psa$PSA6, homebutton = F) %>%
     .@map %>%
     removeMouseCoordinates() %>%
     addCircleMarkers(
-      data = mapdat,
+      data = mapdyn,
       layerId = ~site,
       stroke = TRUE,
       color = 'black',
       fill = TRUE,
-      fillColor = ~ctpal(scrcat),
+      fillColor = ~bipal(scrcat),
       radius=5,
       weight = 1,
       fillOpacity = 1,
       label = ~paste0(site, ' (', date, '): ', round(scr, 2), ' (', scrcat, ')')
     ) %>% 
-    addLegend("topright", pal = ctpal, values = mapdat$scrcat,
-                title = "Threshold",
+    addLegend("topright", pal = bipal, values = mapdyn$scrcat,
+                title = "Goal",
                 opacity = 1
       )
 
@@ -411,10 +481,10 @@ renderPlot({
   toplo_old <- suppdat 
   
   pold <- ggplot(toplo_old, aes_string(x = evvr, y = 'scr')) +
-    geom_point(alpha = 0.7, size = 1.5) +
+    geom_point(alpha = 0.7, size = 1.3) +
     geom_smooth(method = 'lm', se = FALSE) +
     facet_wrap( ~ ind, ncol = 4) +
-    scale_y_continuous('Index score', expand = c(0, 0)) +  
+    scale_y_continuous('ASCI score', expand = c(0, 0)) +  
     scale_x_continuous(xlab) +
     pbase
   
@@ -422,17 +492,17 @@ renderPlot({
   toplo_new <- cmbdat
 
   pnew <- ggplot(toplo_new, aes_string(x = evvr, y = 'scr')) +
-    geom_point(alpha = 0.7, size = 1.5) +
+    geom_point(alpha = 0.7, size = 1.3) +
     geom_smooth(method = 'lm', se = FALSE) +
-    geom_hline(aes(yintercept = thrsh), linetype = 'dashed', colour = 'tomato1') +
+    geom_hline(aes(yintercept = thrsh), linetype = 'dashed', colour = 'tomato1', size = 1) +
     facet_grid(indnew ~ tax) +
-    scale_y_continuous('Index score', expand = c(0, 0)) +  
+    scale_y_continuous('ASCI score', expand = c(0, 0)) +  
     scale_x_continuous(xlab) +
     pbase
 
   if(evvr %in% c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL')){
-    pold <- pold + scale_x_log10('Index score')   
-    pnew <- pnew + scale_x_log10('Index score') 
+    pold <- pold + scale_x_log10(xlab)   
+    pnew <- pnew + scale_x_log10(xlab) 
   }
   
   grid.arrange(pold, pnew, ncol = 1, heights = c(0.5, 1))
@@ -444,5 +514,42 @@ renderPlot({
 
 ```{r}
 selectInput('olin', 'Select index for comparison:', choices = c('CSCI', 'D18', 'S2', 'H20'))
+```
+
+```{r}
+renderPlot({
+  
+  # input
+  cmbdat <- cmbdat()
+  olin <- input$olin
+
+  lms <- c(0, 1.6)
+  xlab <- paste(olin, 'Score')
+  ylab <- paste('ASCI -', olin, 'Score')
+
+  toplo <- cmbdat %>% 
+    filter(!is.na(scr))
+
+  p1 <- ggplot(toplo, aes(x = scr, y = scrnew)) +
+    geom_point(alpha = 0.6, size = 1) +
+    geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
+    geom_smooth(method = 'lm', se = F) +
+    facet_grid(indnew ~ tax) +
+    scale_y_continuous('ASCI Score', limits = lms) +
+    scale_x_continuous(xlab, limits = lms) +
+    pbase 
+
+  p2 <- ggplot(toplo, aes(x = scr, y = scrdif)) +
+    geom_point(alpha = 0.6, size = 1) +
+    geom_hline(yintercept = 0, linetype = 'dashed') +
+    geom_smooth(method = 'lm', se = F) +
+    facet_grid(indnew ~ tax) +
+    scale_y_continuous(ylab) +
+    scale_x_continuous(xlab, limits = lms) +
+    pbase
+
+  grid.arrange(p1, p2, ncol = 1)
+  
+}, height = 950)
 ```
 
