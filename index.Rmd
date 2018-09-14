@@ -11,18 +11,24 @@ runtime: shiny
 ```{r setup, warning = F, message = F, cache = T, echo = F}
 knitr::opts_chunk$set(echo = F, warning = F, message = F, fig.pat = 'fig/')
 
+# packages
 library(tidyverse)
 library(sf)
 library(leaflet)
 library(mapview)
 library(shiny)
 library(rsconnect)
+library(gridExtra)
 
+# data
 data(ascidat)
 data(ascithr)
 data(suppdat)
 data(psa)
 
+## globals
+
+# crs
 prj <- '+proj=longlat +datum=WGS84 +no_defs'
 
 # color palettes
@@ -31,17 +37,27 @@ ctcol <- RColorBrewer::brewer.pal(3, 'RdYlGn') %>%
 tycol <- RColorBrewer::brewer.pal(9, 'PRGn') %>% 
   rev
 ptcol <- RColorBrewer::brewer.pal(9, 'Set1')[c(1:3)]
-sccol <- colorNumeric(palette = c('#d7191c', '#abd9e9', '#2c7bb6'), na.color = 'yellow', domain = ascidat$scr)
+scpal <- colorNumeric(palette = c('#d7191c', '#abd9e9', '#2c7bb6'), na.color = 'yellow', domain = ascidat$scr)
+ctpal <- colorFactor(
+  palette = ctcol[c(1, 3)],
+  na.color = 'yellow',
+  levels = c('pass', 'fail'))
 
+# env vars to eval
+evvar <- c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL', 'XCDENMID', 'PCT_SAFN', 'SpecificConductivity_uSPercm', 'Temperature_Deg_C') 
+names(evvar) <- c('Phosphorus (mg/L)', 'Total Nitrogen (mg/L)', '% Shading', '% Sands and Fines', 'Conductivity (mS/cm)', 'Temperature (C)')
+
+# base theme
+pbase <- theme_minimal(base_family = 'serif', base_size = 14) +
+  theme(
+    panel.border = element_rect(colour = 'black', fill = NA, size = 0.5),
+    legend.position = 'top', 
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank()
+  )
 ```
 
-### Score distributions {.tabset}
-
-```{r}
-selectInput('thr', 'Select reference threshold:', choices = list('1%' = 0.01, '10%' = 0.1, '30%' = 0.3), selected = '0.1')
-```
-
-```{r}
+```{r reactives}
 # thresholds
 thrsh <- reactive({
   
@@ -73,9 +89,75 @@ ascicat <- reactive({
   return(out)
   
 })
+
+# map data
+mapdat <- reactive({
+  
+  # input
+  indsel <- input$indsel
+  taxsel <- input$taxsel
+  ascicat <- ascicat()
+
+  # get index and taxa for mapping 
+  # get most recent visit
+  out <- ascicat %>% 
+    filter(tax %in% taxsel) %>% 
+    filter(ind %in% indsel) %>% 
+    filter(smps == 1) %>%
+    filter(!is.na(scrcat)) %>% 
+    group_by(site) %>% 
+    filter(date %in% max(date)) %>% 
+    ungroup %>% 
+    dplyr::select(site, date, ind, tax, scr, scrcat, lon, lat) %>% 
+    filter(!is.na(lon)|!is.na(lat)) %>% 
+    mutate(
+      lon = as.numeric(lon), 
+      lat = as.numeric(lat)
+      ) %>% 
+    st_as_sf(coords = c('lon', 'lat'), crs = prj)
+  
+  return(out)
+  
+})
+
+# selected environmental variable, other indices, and asci data
+cmbdat <- reactive({
+  
+  # input
+  ascicat <- ascicat()
+  evvr <- input$evvr
+  olin <- input$olin
+
+  # supp data to join
+  suppjn <- suppdat %>% 
+    filter(ind %in% olin)
+  
+  # new indices
+  out <- ascicat %>% 
+    rename(
+      scrnew = scr,
+      indnew = ind
+      ) %>% 
+    left_join(suppjn, by = 'sampleid') %>%
+    mutate(
+      scrdif = scrnew - scr
+    ) %>% 
+    select(one_of(c('sampleid', 'scrnew', 'indnew', 'ptile', 'thrsh', 'ind', 'tax', 'scr', 'scrdif', evvr)))
+  
+  return(out)
+  
+})
 ```
 
-#### By Site types
+```{r}
+selectInput('thr', 'Select reference threshold:', choices = list('1%' = 0.01, '10%' = 0.1, '30%' = 0.3), selected = '0.1')
+```
+
+## Score distributions {.tabset}
+
+### By Site types {.tabset .tabset-pills}
+
+#### Scores
 
 ```{r}
 # boxplot by site types
@@ -91,7 +173,7 @@ renderPlot({
   # plot
   p <- ggplot(toplo, aes(x = sit2, y = scr)) + 
     geom_boxplot(outlier.size = 1, aes(fill = sit2), alpha = 0.7) + 
-    geom_hline(aes(yintercept = thrsh)) +
+    geom_hline(aes(yintercept = thrsh), linetype = 'dashed', colour = 'tomato1') +
     facet_grid(ind ~ tax) +
     scale_fill_manual(values = ctcol) +
     scale_y_continuous('Index Score') + 
@@ -106,7 +188,11 @@ renderPlot({
   return(p)
   
 }, height = 600)
+```
 
+#### Index category
+
+```{r}
 # proportion pass/fail by site type
 renderPlot({
   
@@ -144,7 +230,9 @@ renderPlot({
 }, height = 600)
 ```
 
-#### By PSA regions
+### By PSA regions {.tabset .tabset-pills}
+
+#### Scores
 
 ```{r}
 # boxplot by PSA
@@ -160,7 +248,7 @@ renderPlot({
   # plot
   p <- ggplot(toplo, aes(x = PSA6, y = scr)) + 
     geom_boxplot(outlier.size = 1, alpha = 0.6, fill = 'lightblue') + 
-    geom_hline(aes(yintercept = thrsh)) +
+    geom_hline(aes(yintercept = thrsh), linetype = 'dashed', colour = 'tomato1') +
     facet_grid(ind ~ tax) +
     scale_y_continuous('Index Score') + 
     theme_minimal(base_family = 'serif', base_size = 16) +
@@ -174,7 +262,11 @@ renderPlot({
   return(p)
   
 }, height = 600)
+```
 
+#### Index category
+
+```{r}
 # proportion pass/fail by PSA
 renderPlot({
   
@@ -213,7 +305,7 @@ renderPlot({
 
 ```
 
-#### Maps
+### Maps {.tabset .tabset-pills}
 
 ```{r}
 column(12, 
@@ -228,37 +320,7 @@ column(12,
   
 )
 ```
-
-```{r}
-mapdat <- reactive({
-  
-  # input
-  indsel <- input$indsel
-  taxsel <- input$taxsel
-  ascicat <- ascicat()
-
-  # get index and taxa for mapping 
-  # get most recent visit
-  out <- ascicat %>% 
-    filter(tax %in% taxsel) %>% 
-    filter(ind %in% indsel) %>% 
-    filter(smps == 1) %>%
-    filter(!is.na(scrcat)) %>% 
-    group_by(site) %>% 
-    filter(date %in% max(date)) %>% 
-    ungroup %>% 
-    dplyr::select(site, date, ind, tax, scr, scrcat, lon, lat) %>% 
-    filter(!is.na(lon)|!is.na(lat)) %>% 
-    mutate(
-      lon = as.numeric(lon), 
-      lat = as.numeric(lat)
-      ) %>% 
-    st_as_sf(coords = c('lon', 'lat'), crs = prj)
-  
-  return(out)
-  
-})
-```
+#### Scores
 
 ```{r}
 # scrmap
@@ -276,44 +338,111 @@ output$scrmap <- renderLeaflet({
       stroke = TRUE,
       color = 'black',
       fill = TRUE,
-      fillColor = ~sccol(scr),
+      fillColor = ~scpal(scr),
       radius=5, 
       weight = 1,
       fillOpacity = 1,
       label = ~paste0(site, ' (', date, '): ', round(scr, 2), ' (', scrcat, ')')
-    )
+    )  %>% 
+    addLegend("topright", pal = scpal, values = mapdat$scr,
+                title = "Score",
+                opacity = 1
+      )
   
   })
 
 leafletOutput('scrmap', height = 700)
-
-# # pass/fail map
-# output$scrmap <- renderLeaflet({
-#   
-#   # input
-#   mapdat <- mapdat()
-#   
-#   mapview(psa, fill = F, label = psa$PSA6, homebutton = F) %>% 
-#     .@map %>% 
-#     removeMouseCoordinates() %>%
-#     addCircleMarkers(
-#       data = mapdat, 
-#       layerId = ~site,
-#       stroke = TRUE,
-#       color = 'black',
-#       fill = TRUE,
-#       fillColor = ~sccol(scr),
-#       radius=5, 
-#       weight = 1,
-#       fillOpacity = 1,
-#       label = ~paste0(site, ' (', date, '): ', round(scr, 2), ' (', scrcat, ')')
-#     )
-#   
-#   })
-# 
-# leafletOutput('scrmap', height = 700)
 ```
 
-### Relationships with environmental variables
+#### Index category
 
-### Comparisons with existing indices
+```{r}
+
+# pass/fail map
+output$catmap <- renderLeaflet({
+
+  # input
+  mapdat <- mapdat()
+
+  mapview(psa, fill = F, label = psa$PSA6, homebutton = F) %>%
+    .@map %>%
+    removeMouseCoordinates() %>%
+    addCircleMarkers(
+      data = mapdat,
+      layerId = ~site,
+      stroke = TRUE,
+      color = 'black',
+      fill = TRUE,
+      fillColor = ~ctpal(scrcat),
+      radius=5,
+      weight = 1,
+      fillOpacity = 1,
+      label = ~paste0(site, ' (', date, '): ', round(scr, 2), ' (', scrcat, ')')
+    ) %>% 
+    addLegend("topright", pal = ctpal, values = mapdat$scrcat,
+                title = "Threshold",
+                opacity = 1
+      )
+
+  })
+
+leafletOutput('catmap', height = 700)
+```
+
+## Relationships with environmental variables
+
+```{r}
+selectInput('evvr', 'Select environmental variable:', choices = evvar)
+```
+
+```{r}
+renderPlot({
+
+  # input
+  cmbdat <- cmbdat()
+  evvr <- input$evvr
+  
+  # evvr name
+  xlab <- names(evvar[evvar %in% evvr])
+  
+  ## prep plot data from combined object
+
+  # old indices
+  toplo_old <- suppdat 
+  
+  pold <- ggplot(toplo_old, aes_string(x = evvr, y = 'scr')) +
+    geom_point(alpha = 0.7, size = 1.5) +
+    geom_smooth(method = 'lm', se = FALSE) +
+    facet_wrap( ~ ind, ncol = 4) +
+    scale_y_continuous('Index score', expand = c(0, 0)) +  
+    scale_x_continuous(xlab) +
+    pbase
+  
+  # new indices
+  toplo_new <- cmbdat
+
+  pnew <- ggplot(toplo_new, aes_string(x = evvr, y = 'scr')) +
+    geom_point(alpha = 0.7, size = 1.5) +
+    geom_smooth(method = 'lm', se = FALSE) +
+    geom_hline(aes(yintercept = thrsh), linetype = 'dashed', colour = 'tomato1') +
+    facet_grid(indnew ~ tax) +
+    scale_y_continuous('Index score', expand = c(0, 0)) +  
+    scale_x_continuous(xlab) +
+    pbase
+
+  if(evvr %in% c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL')){
+    pold <- pold + scale_x_log10('Index score')   
+    pnew <- pnew + scale_x_log10('Index score') 
+  }
+  
+  grid.arrange(pold, pnew, ncol = 1, heights = c(0.5, 1))
+  
+}, height = 700)
+```
+
+## Comparisons with existing indices
+
+```{r}
+selectInput('olin', 'Select index for comparison:', choices = c('CSCI', 'D18', 'S2', 'H20'))
+```
+

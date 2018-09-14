@@ -2,12 +2,12 @@ library(tidyverse)
 library(lubridate)
 library(sf)
 
+data(psa)
+prj <- '+proj=longlat +datum=WGS84 +no_defs'
+
 ######
 # september 2018 figs for Susie
 # data from https://drive.google.com/open?id=19PLgB1zcBTEa76B1kTFu6AYzNDuOx51q
-
-data(psa)
-prj <- '+proj=longlat +datum=WGS84 +no_defs'
 
 # asci scores, get scores and site types only
 asciall <- read.csv('raw/asci.scores.csv', stringsAsFactors = FALSE) %>% 
@@ -117,11 +117,12 @@ st_geometry(psadat) <- NULL
 
 # join psa to suppdat
 suppdat <- suppdat %>% 
-  left_join(psadat, by = 'sampleid') 
+  left_join(psadat, by = 'sampleid') %>% 
+  mutate_if(is.factor, as.character) 
 
 # filter any where all columns are na except sampleid
 suppdat <- suppdat %>% 
-  gather('var', 'val', -sampleid) %>% 
+  gather('var', 'val', -sampleid, -StationCode, -PSA6) %>% 
   filter(!is.na(val)) %>% 
   spread(var, val)
 
@@ -132,6 +133,45 @@ ascidat <- suppdat %>%
   na.omit %>% 
   left_join(ascidat, ., by = 'sampleid')
 
+# get only relevant variables for plotting
+# put old index values in long format
+suppdat <- suppdat %>% 
+  select(-lat, -lon, -PSA6, -StationCode) %>% 
+  gather('ind', 'scr', csci, D18, S2, H20) %>% 
+  mutate(
+    ind = factor(ind, levels = c('csci', 'D18', 'S2', 'H20'), labels = c('CSCI', 'D18', 'S2', 'H20'))
+  )
+
+# get median values of algal indices at ref cal sites
+algthrsh <- suppdat %>% 
+  rename(
+    algind = ind,
+    algscr = scr
+    ) %>% 
+  left_join(ascidat, by = 'sampleid') %>% 
+  select(sampleid, algind, algscr, sit1) %>% 
+  unique %>% 
+  filter(!algind %in% 'CSCI') %>% 
+  filter(sit1 %in% 'rc') %>% 
+  group_by(algind) %>% 
+  summarise(
+    thrsh = median(algscr, na.rm = T)
+  ) %>% 
+  ungroup %>% 
+  rename(ind = algind)
+
+# join algthrsh with suppdat to standardize
+suppdat <- suppdat %>% 
+  left_join(algthrsh, by = 'ind') %>% 
+  mutate(
+    scr = case_when(
+      ind %in% 'CSCI' ~ scr, 
+      TRUE ~ scr / thrsh
+      
+    )
+  ) %>% 
+  dplyr::select(-thrsh)
+  
 save(ascidat, file = 'data/ascidat.RData', compress = 'xz')
 save(ascithr, file = 'data/ascithr.RData', compress = 'xz')
 save(suppdat, file = 'data/suppdat.RData', compress = 'xz')

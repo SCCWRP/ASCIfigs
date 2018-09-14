@@ -15,3 +15,5 @@ bindrcpp
 lubridate
 rmarkdown
 leaflet
+rsconnect
+gridExtra
