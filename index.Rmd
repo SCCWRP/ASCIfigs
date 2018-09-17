@@ -1,5 +1,5 @@
 ---
-title: "Algal Stream Condition Index "
+title: "ASCI dashboard"
 output: 
   html_document:
     toc: true
@@ -164,11 +164,17 @@ cmbdat <- reactive({
 })
 ```
 
+This interactive dashboard provides an overview of scores for the Algal Stream Condition Index using all statewide data.  The dashboard includes three main sections for viewing score distributions, relationships with environmental variables, and comparisons with existing indices.  The navigation bar on the left can be used to switch between sections.  The selection menu below can toggle different biointegrity goals that are viewed on the plots as either a dotted reference line or the criteria that defines the number of sites that meet or do not meet the goal depending on the plot.  Please contact [Susanna Theroux](mailto:susannat@sccwrp.org) for technical questions about the ASCI and [Marcus Beck](mailto:marcusb@sccwrp.org) for questions about the dashboard.
+
+<!-- <img src="www/sccwrp_logo.jpg" alt="drawing" width="200"/> -->
+
 ```{r}
 selectInput('thr', 'Select biointegrity goal:', choices = unique(ascithr$bigls), selected = 'Ref10')
 ```
 
 ## Score distributions {.tabset}
+
+Score distributions for the ASCI can be viewed by site types (reference, intermediate, stressed), by PSA regions (Central Valley, Chaparral, Deserts Modoc, North Coast, Sierra Nevada, South Coast), as static maps, or as interactive maps.  For each tab, the scores can be viewed as the disribution of values or whether scores meet or do not meet the selected biointegrity goal. For the maps, only the most recent sample at a site is shown. The dotted red line in the plots shows the selected biointegrity goal for the relevant ASCI.  
 
 ### By Site types {.tabset .tabset-pills}
 
@@ -462,6 +468,8 @@ leafletOutput('catmap', height = 700)
 
 ## Relationships with environmental variables
 
+These plots show simple correlations of index scores with selected environmental variables.  The top row of plots show relationships of the California Stream Condition Index (CSCI, macroinvertebrate infex), D18 (southern California diatom index), S2 (southern California soft-bodied algal index), and H20 (southern California hybrid algal index) with the selected variable.  The bottom panels shows relationships of the ASCI scores with the same variable.  The linear fit between the index and the environmental variable is shown in blue and the selected biointegrity goal for each ASCI index is shown as the dotted red line.  
+
 ```{r}
 selectInput('evvr', 'Select environmental variable:', choices = evvar)
 ```
@@ -485,7 +493,7 @@ renderPlot({
     geom_point(alpha = 0.7, size = 1.3) +
     geom_smooth(method = 'lm', se = FALSE) +
     facet_wrap( ~ ind, ncol = 4) +
-    scale_y_continuous('ASCI score', expand = c(0, 0)) +  
+    scale_y_continuous('Index score', expand = c(0, 0)) +  
     scale_x_continuous(xlab) +
     pbase
   
@@ -512,6 +520,8 @@ renderPlot({
 ```
 
 ## Comparisons with existing indices
+
+These plots compare ASCI scores with existing indices including the California Stream Condition Index (CSCI, macroinvertebrate infex), D18 (southern California diatom index), S2 (southern California soft-bodied algal index), and H20 (southern California hybrid algal index.  The menu can be used to select the existing index to compare to the ASCI. The top plots show simple correlations between ASCI scores and the selected index, whereas the bottom plot shows the difference between ASCI scores and selected index compared to observed scores for the selected index.  Blue lines shows the linear fit in each plot, whereas the dotted line shows the 1:1 line in the top plots and the zero line in the bottom plots.
 
 ```{r}
 selectInput('olin', 'Select index for comparison:', choices = c('CSCI', 'D18', 'S2', 'H20'))
