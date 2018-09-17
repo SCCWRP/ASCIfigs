@@ -162,6 +162,82 @@ cmbdat <- reactive({
   return(out)
   
 })
+
+# get r2 value of indices with selected env var
+cmbdatr2 <- reactive({
+  
+  # input
+  cmbdat <- cmbdat()
+  evvr <- input$evvr
+  
+  out <- cmbdat %>% 
+    group_by(indnew, tax) %>% 
+    rename(
+      xvar = !! evvr
+    ) %>% 
+    nest %>% 
+    mutate(
+      r2 = map(data, function(x){
+
+        frm <- 'scrnew ~ xvar'
+        if(evvr %in% c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL'))
+          frm <- gsub('xvar$', 'log10(1 + xvar)', frm)
+        
+        frm <- frm %>% 
+          as.formula
+        r2 <- lm(frm, data = x) %>% 
+          summary %>% 
+          .$r.squared %>% 
+          round(2)
+        
+        return(r2)
+        
+      })
+    ) %>% 
+    select(-data) %>% 
+    unnest
+  
+  return(out)
+
+})
+
+# get r2 value of existing indices with selected env var
+suppdatr2 <- reactive({
+  
+  # input
+  evvr <- input$evvr
+  
+  out <- suppdat %>% 
+    group_by(ind) %>% 
+    rename(
+      xvar = !! evvr
+    ) %>% 
+    select(ind, scr, xvar) %>% 
+    nest %>% 
+    mutate(
+      r2 = map(data, function(x){
+
+        frm <- 'scr ~ xvar'
+        if(evvr %in% c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL'))
+          frm <- gsub('xvar$', 'log10(1 + xvar)', frm)
+        
+        frm <- frm %>% 
+          as.formula
+        r2 <- lm(frm, data = x) %>% 
+          summary %>% 
+          .$r.squared %>% 
+          round(2)
+        
+        return(r2)
+        
+      })
+    ) %>% 
+    select(-data) %>% 
+    unnest
+  
+  return(out)
+  
+})
 ```
 
 This interactive dashboard provides an overview of scores for the Algal Stream Condition Index using all statewide data.  The dashboard includes three main sections for viewing score distributions, relationships with environmental variables, and comparisons with existing indices.  The navigation bar on the left can be used to switch between sections.  The selection menu below can toggle different biointegrity goals that are viewed on the plots as either a dotted reference line or the criteria that defines the number of sites that meet or do not meet the goal depending on the plot.  Please contact [Susanna Theroux](mailto:susannat@sccwrp.org) for technical questions about the ASCI and [Marcus Beck](mailto:marcusb@sccwrp.org) for questions about the dashboard.
@@ -468,7 +544,7 @@ leafletOutput('catmap', height = 700)
 
 ## Relationships with environmental variables
 
-These plots show simple correlations of index scores with selected environmental variables.  The top row of plots show relationships of the California Stream Condition Index (CSCI, macroinvertebrate infex), D18 (southern California diatom index), S2 (southern California soft-bodied algal index), and H20 (southern California hybrid algal index) with the selected variable.  The bottom panels shows relationships of the ASCI scores with the same variable.  The linear fit between the index and the environmental variable is shown in blue and the selected biointegrity goal for each ASCI index is shown as the dotted red line.  
+These plots show simple correlations of index scores with selected environmental variables.  The top row of plots show relationships of the California Stream Condition Index (CSCI, macroinvertebrate infex), D18 (southern California diatom index), S2 (southern California soft-bodied algal index), and H20 (southern California hybrid algal index) with the selected variable.  The bottom panels shows relationships of the ASCI scores with the same variable.  The linear fit between the index and the environmental variable is shown in blue and the selected biointegrity goal for each ASCI index is shown as the dotted red line. R-squared values (proportion of explained variance) for each panel are shown in parentheses.
 
 ```{r}
 selectInput('evvr', 'Select environmental variable:', choices = evvar)
@@ -479,6 +555,8 @@ renderPlot({
 
   # input
   cmbdat <- cmbdat()
+  cmbdatr2 <- cmbdatr2()
+  suppdatr2 <- suppdatr2()
   evvr <- input$evvr
   
   # evvr name
@@ -487,7 +565,10 @@ renderPlot({
   ## prep plot data from combined object
 
   # old indices
-  toplo_old <- suppdat 
+  toplo_old <- suppdat %>% 
+    left_join(suppdatr2, by = 'ind') %>% 
+    mutate(r2 = paste0('(', r2, ')')) %>% 
+    unite('ind', ind, r2, sep = ' ')
   
   pold <- ggplot(toplo_old, aes_string(x = evvr, y = 'scr')) +
     geom_point(alpha = 0.7, size = 1.3) +
@@ -498,13 +579,16 @@ renderPlot({
     pbase
   
   # new indices
-  toplo_new <- cmbdat
+  toplo_new <- cmbdat %>% 
+    left_join(cmbdatr2, by = c('indnew', 'tax')) %>% 
+    mutate(r2 = paste0('(', r2, ')')) %>% 
+    unite('indnew', indnew, r2, sep = ' ')
 
   pnew <- ggplot(toplo_new, aes_string(x = evvr, y = 'scrnew')) +
     geom_point(alpha = 0.7, size = 1.3) +
     geom_smooth(method = 'lm', se = FALSE) +
     geom_hline(aes(yintercept = bival), linetype = 'dashed', colour = 'tomato1', size = 1) +
-    facet_grid(indnew ~ tax) +
+    facet_wrap(indnew ~ tax, ncol = 3) +
     scale_y_continuous('ASCI score', expand = c(0, 0)) +  
     scale_x_continuous(xlab) +
     pbase
@@ -514,9 +598,9 @@ renderPlot({
     pnew <- pnew + scale_x_log10(xlab) 
   }
   
-  grid.arrange(pold, pnew, ncol = 1, heights = c(0.5, 1))
+  grid.arrange(pold, pnew, ncol = 1, heights = c(0.35, 1))
   
-}, height = 700)
+}, height = 800)
 ```
 
 ## Comparisons with existing indices
