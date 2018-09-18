@@ -169,6 +169,13 @@ suppdat <- suppdat %>%
   ) %>% 
   dplyr::select(-thrsh)
   
+# get site types from ascidat to join with suppdat
+suppdat <- ascidat %>% 
+  select(sampleid, sit1) %>% 
+  unique %>% 
+  na.omit %>% 
+  left_join(suppdat, ., by = 'sampleid')
+
 save(ascidat, file = 'data/ascidat.RData', compress = 'xz')
 save(ascithr, file = 'data/ascithr.RData', compress = 'xz')
 save(suppdat, file = 'data/suppdat.RData', compress = 'xz')

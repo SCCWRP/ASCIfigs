@@ -80,6 +80,8 @@ ascicat <- reactive({
   
   # input
   thrsh <- thrsh()
+  refonly <- input$refonly %>% 
+    as.logical
   
   # add threshold
   out <- ascidat %>% 
@@ -87,11 +89,32 @@ ascicat <- reactive({
     mutate(
       scrcat = ifelse(scr < bival, 'not met', 'met')
     )
+
+  # filter rc if T
+  if(refonly)
+    out <- out %>% 
+      filter(sit1 %in% 'rc')
   
   return(out)
   
 })
 
+# filter supp index data by rc if tr
+supprct <- reactive({
+  
+  # input
+  refonly <- input$refonly %>% 
+    as.logical
+  
+  out <- suppdat
+  if(refonly)
+    out <- out %>% 
+      filter(sit1 %in% 'rc') %>% 
+      select(-sit1)
+  
+  return(out)
+  
+})
 # map data, static
 mapsta <- reactive({
   
@@ -140,11 +163,12 @@ cmbdat <- reactive({
   
   # input
   ascicat <- ascicat()
+  supprct <- supprct()
   evvr <- input$evvr
   olin <- input$olin
 
   # supp data to join
-  suppjn <- suppdat %>% 
+  suppjn <- supprct %>% 
     filter(ind %in% olin)
 
   # new indices
@@ -206,8 +230,9 @@ suppdatr2 <- reactive({
   
   # input
   evvr <- input$evvr
+  supprct <- supprct()
   
-  out <- suppdat %>% 
+  out <- supprct %>% 
     group_by(ind) %>% 
     rename(
       xvar = !! evvr
@@ -240,12 +265,22 @@ suppdatr2 <- reactive({
 })
 ```
 
-This interactive dashboard provides an overview of scores for the Algal Stream Condition Index using all statewide data.  The dashboard includes three main sections for viewing score distributions, relationships with environmental variables, and comparisons with existing indices.  The navigation bar on the left can be used to switch between sections.  The selection menu below can toggle different biointegrity goals that are viewed on the plots as either a dotted reference line or the criteria that defines the number of sites that meet or do not meet the goal depending on the plot.  Please contact [Susanna Theroux](mailto:susannat@sccwrp.org) for technical questions about the ASCI and [Marcus Beck](mailto:marcusb@sccwrp.org) for questions about the dashboard.
+This interactive dashboard provides an overview of scores for the Algal Stream Condition Index using all statewide data.  The dashboard includes three main sections for viewing score distributions, relationships with environmental variables, and comparisons with existing indices.  The navigation bar on the left can be used to switch between sections.  The selection menus below can toggle different biointegrity goals and the types of sites that are shown.  The biontegrity selection changes the goals that are viewed on the plots as either a dotted reference line or the criteria that defines the number of sites that meet or do not meet the goal depending on the plot.  The second selector chooses whether all sites are shown on the dashboard or only those that are referencs sites for calibrating the ASCI.  Please contact [Susanna Theroux](mailto:susannat@sccwrp.org) for technical questions about the ASCI and [Marcus Beck](mailto:marcusb@sccwrp.org) for questions about the dashboard.
 
 <!-- <img src="www/sccwrp_logo.jpg" alt="drawing" width="200"/> -->
 
 ```{r}
-selectInput('thr', 'Select biointegrity goal:', choices = unique(ascithr$bigls), selected = 'Ref10')
+column(12, 
+
+       column(6,
+              selectInput('thr', 'Select biointegrity goal:', choices = unique(ascithr$bigls), selected = 'Ref10')
+       ), 
+       
+       column(6, 
+              selectInput('refonly', 'Show only reference calibration sites?', choices = c(T, F), selected = F)
+              )
+       
+)
 ```
 
 ## Score distributions {.tabset}
@@ -557,6 +592,7 @@ renderPlot({
   cmbdat <- cmbdat()
   cmbdatr2 <- cmbdatr2()
   suppdatr2 <- suppdatr2()
+  supprct <- supprct()
   evvr <- input$evvr
   
   # evvr name
@@ -565,7 +601,7 @@ renderPlot({
   ## prep plot data from combined object
 
   # old indices
-  toplo_old <- suppdat %>% 
+  toplo_old <- supprct %>% 
     left_join(suppdatr2, by = 'ind') %>% 
     mutate(r2 = paste0('(', r2, ')')) %>% 
     unite('ind', ind, r2, sep = ' ')
