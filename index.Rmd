@@ -2,9 +2,10 @@
 title: "ASCI dashboard"
 output: 
   html_document:
+    includes:
+      in_header: cssloaders_in_header.html
     toc: true
     toc_float: true
-self_contained: yes
 runtime: shiny
 ---
 
@@ -21,6 +22,7 @@ library(mapview)
 library(shiny)
 library(rsconnect)
 library(gridExtra)
+library(shinycssloaders)
 
 # data
 data(ascidat)
@@ -99,7 +101,81 @@ ascicat <- reactive({
   
 })
 
-# filter supp index data by rc if tr
+# tabular data from ascicat of ranges, by site type
+ascitabsit <- reactive({
+  
+  # input
+  ascicat <- ascicat()
+  
+  out <- ascicat %>% 
+    select(sampleid, ind, tax, scr, sit2) %>% 
+    filter(!is.na(sit2)) %>% 
+    group_by(ind, tax, sit2) %>% 
+    summarise(
+      `Minimum` = min(scr, na.rm = T),
+      `25th percentile` = quantile(scr, 0.25, na.rm = T),
+      `Median`  = median(scr, na.rm = T), 
+      `75th percentile` = quantile(scr, 0.75, na.rm = T),
+      `Maximum` = max(scr, na.rm = T)
+    ) %>% 
+    group_by(ind) %>%  
+    mutate(
+      tax = as.character(tax),
+      tax = ifelse(duplicated(tax), '', tax)
+    ) %>% 
+    ungroup %>% 
+    mutate(
+      ind = as.character(ind), 
+      ind = ifelse(duplicated(ind), '', ind)
+    ) %>% 
+    rename(
+      Index = ind, 
+      Group = tax,
+      `Site type` = sit2
+    )
+    
+  return(out)
+  
+})
+
+# tabular data from ascicat of ranges, by region
+ascitabpsa <- reactive({
+  
+  # input
+  ascicat <- ascicat()
+  
+  out <- ascicat %>% 
+    select(sampleid, ind, tax, scr, PSA6) %>% 
+    filter(!is.na(PSA6)) %>% 
+    group_by(ind, tax, PSA6) %>% 
+    summarise(
+      `Minimum` = min(scr, na.rm = T),
+      `25th percentile` = quantile(scr, 0.25, na.rm = T),
+      `Median`  = median(scr, na.rm = T), 
+      `75th percentile` = quantile(scr, 0.75, na.rm = T),
+      `Maximum` = max(scr, na.rm = T)
+    ) %>% 
+    group_by(ind) %>%  
+    mutate(
+      tax = as.character(tax),
+      tax = ifelse(duplicated(tax), '', tax)
+    ) %>% 
+    ungroup %>% 
+    mutate(
+      ind = as.character(ind), 
+      ind = ifelse(duplicated(ind), '', ind)
+    ) %>% 
+    rename(
+      Index = ind, 
+      Group = tax,
+      Region = PSA6
+    )
+    
+  return(out)
+  
+})
+
+# filter supp index data by rc if refonly is true
 supprct <- reactive({
   
   # input
@@ -115,6 +191,7 @@ supprct <- reactive({
   return(out)
   
 })
+
 # map data, static
 mapsta <- reactive({
   
@@ -158,7 +235,7 @@ mapdyn <- reactive({
   
 })
 
-# selected environmental variable, other indices, and asci data
+# combined selected environmental variable, other indices, and asci data
 cmbdat <- reactive({
   
   # input
@@ -293,7 +370,7 @@ Score distributions for the ASCI can be viewed by site types (reference, interme
 
 ```{r}
 # boxplot by site types
-renderPlot({
+output$sitbox <- renderPlot({
 
   # input
   ascicat <- ascicat()
@@ -319,14 +396,20 @@ renderPlot({
   
   return(p)
   
-}, height = 600)
+})
+plotOutput('sitbox', height = '600px') %>% withSpinner()
+
+# table of ranges
+wellPanel(id = "tabsit", style = "overflow-y:scroll; height:400px; max-height: 400px; background-color:#ffffff", 
+  renderTable({ascitabsit()})
+)
 ```
 
 #### Biointegrity goal
 
 ```{r}
 # proportion met/not met by site type
-renderPlot({
+output$sitpro <- renderPlot({
   
   # input
   ascicat <- ascicat()
@@ -359,7 +442,8 @@ renderPlot({
   
   return(p)
   
-}, height = 600)
+})
+plotOutput('sitpro', height = '600px') %>% withSpinner()
 ```
 
 ### By PSA regions {.tabset .tabset-pills}
@@ -368,7 +452,7 @@ renderPlot({
 
 ```{r}
 # boxplot by PSA
-renderPlot({
+output$psabox <- renderPlot({
 
   # input
   ascicat <- ascicat()
@@ -394,13 +478,19 @@ renderPlot({
   return(p)
   
 }, height = 600)
+plotOutput('psabox', height = '600px') %>% withSpinner()
+
+# table of ranges
+wellPanel(id = "tabpsa", style = "overflow-y:scroll; height:400px; max-height: 400px; background-color:#ffffff", 
+  renderTable({ascitabpsa()})
+)
 ```
 
 #### Biointegrity goal
 
 ```{r}
 # proportion met/not met by PSA
-renderPlot({
+output$psapro <- renderPlot({
   
   # input
   ascicat <- ascicat()
@@ -433,7 +523,8 @@ renderPlot({
   
   return(p)
   
-}, height = 600)
+})
+plotOutput('psapro', height = '600px') %>% withSpinner()
 
 ```
 
@@ -442,7 +533,7 @@ renderPlot({
 #### Scores
 
 ```{r}
-renderPlot({
+output$stamapscr <- renderPlot({
   
   # input
   mapsta <- mapsta()
@@ -463,13 +554,14 @@ renderPlot({
 
   return(p)
   
-}, height = 800)
+})
+plotOutput('stamapscr', height = '800px') %>% withSpinner()
 ```
 
 #### Biointegrity goal
 
 ```{r}
-renderPlot({
+output$stamappss <- renderPlot({
   
   # input
   mapsta <- mapsta()
@@ -489,7 +581,8 @@ renderPlot({
   
   return(p)
   
-}, height = 800)
+})
+plotOutput('stamappss', height = '800px') %>% withSpinner()
 ```
 
 ### Dynamic Maps {.tabset .tabset-pills}
@@ -539,7 +632,7 @@ output$scrmap <- renderLeaflet({
   
   })
 
-leafletOutput('scrmap', height = 700)
+leafletOutput('scrmap', height = 700) %>% withSpinner()
 ```
 
 #### Biointegrity goal
@@ -574,7 +667,7 @@ output$catmap <- renderLeaflet({
 
   })
 
-leafletOutput('catmap', height = 700)
+leafletOutput('catmap', height = 700) %>% withSpinner()
 ```
 
 ## Relationships with environmental variables
@@ -586,7 +679,7 @@ selectInput('evvr', 'Select environmental variable:', choices = evvar)
 ```
 
 ```{r}
-renderPlot({
+output$evplo <- renderPlot({
 
   # input
   cmbdat <- cmbdat()
@@ -636,7 +729,8 @@ renderPlot({
   
   grid.arrange(pold, pnew, ncol = 1, heights = c(0.35, 1))
   
-}, height = 800)
+})
+plotOutput('evplo', height = '800px') %>% withSpinner()
 ```
 
 ## Comparisons with existing indices
@@ -648,7 +742,7 @@ selectInput('olin', 'Select index for comparison:', choices = c('CSCI', 'D18', '
 ```
 
 ```{r}
-renderPlot({
+output$olplo <- renderPlot({
   
   # input
   cmbdat <- cmbdat()
@@ -681,6 +775,7 @@ renderPlot({
 
   grid.arrange(p1, p2, ncol = 1)
   
-}, height = 950)
+})
+plotOutput('olplo', height = '950px') %>% withSpinner()
 ```
 
