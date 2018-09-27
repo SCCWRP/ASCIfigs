@@ -1,5 +1,7 @@
 # README
 
+[![DOI](https://zenodo.org/badge/148549350.svg)](https://zenodo.org/badge/latestdoi/148549350)
+
 Materials for all ASCI figures
 
 All data created in `R/dat_proc.R` unless otherwise noted.
