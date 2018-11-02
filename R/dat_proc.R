@@ -90,7 +90,7 @@ ibisall <- read.csv('raw/ibi.scores.csv', stringsAsFactors = FALSE) %>%
 
 # site data  
 siteall <- read.csv('raw/algae.site.data.csv', stringsAsFactors = FALSE) %>% 
-  dplyr::select(X, StationCode, New_Lat, New_Long, Phosphorus_as_P_mgPerL, Nitrogen_Total_mgPerL, SpecificConductivity_uSPercm, XCDENMID, PCT_SAFN, Temperature_Deg_C) %>% 
+  dplyr::select(X, StationCode, New_Lat, New_Long, Phosphorus_as_P_mgPerL, Nitrogen_Total_mgPerL, SpecificConductivity_uSPercm, XCDENMID, PCT_SAFN, Temperature_Deg_C, XSLOPE, LogWSA, Elevation) %>% 
   rename(
     sampleid = X, 
     lat = New_Lat, 

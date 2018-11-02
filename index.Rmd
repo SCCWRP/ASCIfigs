@@ -51,8 +51,8 @@ bipal <- colorFactor(
   levels = c('met', 'not met'))
 
 # env vars to eval
-evvar <- c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL', 'XCDENMID', 'PCT_SAFN', 'SpecificConductivity_uSPercm', 'Temperature_Deg_C') 
-names(evvar) <- c('Phosphorus (mg/L)', 'Total Nitrogen (mg/L)', '% Shading', '% Sands and Fines', 'Conductivity (mS/cm)', 'Temperature (C)')
+evvar <- c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL', 'XCDENMID', 'PCT_SAFN', 'SpecificConductivity_uSPercm', 'Temperature_Deg_C', 'XSLOPE', 'LogWSA', 'Elevation') 
+names(evvar) <- c('Phosphorus (mg/L)', 'Total Nitrogen (mg/L)', '% Shading', '% Sands and Fines', 'Conductivity (mS/cm)', 'Temperature (C)', 'Mean Slope of Reach (%)', 'log-Watershed Area (m2)', 'Elevation (m)')
 
 # base theme
 pbase <- theme_minimal(base_family = 'serif', base_size = 15) +
