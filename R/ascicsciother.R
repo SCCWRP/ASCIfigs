@@ -10,11 +10,11 @@ dat <- suppdat %>%
   filter(ind %in% 'CSCI') %>% 
   spread(ind, scr) %>% 
   full_join(ascidat, by = 'sampleid') %>% 
-  filter(ind %in% 'MMI') %>% 
+  filter(ind %in% 'H_ASCI') %>% 
   filter(tax %in% 'Hybrid') %>% 
   spread(ind, scr) %>% 
   rename(
-    ASCI = MMI
+    ASCI = H_ASCI
   ) %>% 
   select(-sit1.x, -sit1.y, -sit2, -site, -date, -smps, -PSA6, -lon, -lat, -tax) %>% 
   rename(
