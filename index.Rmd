@@ -20,11 +20,20 @@ knitr::opts_chunk$set(echo = F, warning = F, message = F, fig.pat = 'fig/')
 library(tidyverse)
 library(sf)
 library(leaflet)
+# remotes::install_github("r-spatial/mapview") to update mapview
 library(mapview)
 library(shiny)
 library(rsconnect)
 library(patchwork)
 library(shinycssloaders)
+
+# AH additions
+# install.packages("devtools")
+# install.packages("leafem")
+# devtools::install_github("krlmlr/bindrcpp")
+
+library(bindrcpp)
+library(leafem)
 
 # data
 data(ascidat)
@@ -69,7 +78,7 @@ pbase <- theme_minimal(base_family = 'serif', base_size = 15) +
 thrsh <- reactive({
   
   # input
-  thr <- input$thr 
+  thr <- input$thr
   
   out <- ascithr %>% 
     filter(bigls %in% thr)
@@ -84,11 +93,13 @@ ascicat <- reactive({
   
   # input
   thrsh <- thrsh()
-  refonly <- input$refonly %>% 
+  
+  refonly <- input$refonly %>%
     as.logical
   
   # add threshold
   out <- ascidat %>% 
+    mutate(tax = recode(tax, "SBA" = "Soft-bodied")) %>%  #AH update: tax conformity
     left_join(thrsh, by = 'tax') %>% 
     mutate(
       scrcat = ifelse(scr < bival, 'not met', 'met')
@@ -181,7 +192,7 @@ ascitabpsa <- reactive({
 supprct <- reactive({
   
   # input
-  refonly <- input$refonly %>% 
+  refonly <- input$refonly %>%
     as.logical
   
   out <- suppdat
@@ -206,6 +217,7 @@ mapsta <- reactive({
     filter(smps == 1) %>%
     filter(!is.na(scrcat)) %>% 
     group_by(site) %>% 
+    mutate(date = as.Date(date, format = '%m/%d/%y')) %>% #AH data formatting fix: change factor to date
     filter(date %in% max(date)) %>% 
     ungroup %>% 
     dplyr::select(site, date, ind, tax, scr, scrcat, lon, lat) %>% 
@@ -364,7 +376,7 @@ column(12,
 
 ## Score distributions {.tabset}
 
-Score distributions for the ASCI can be viewed by site types (reference, intermediate, stressed), by PSA regions (Central Valley, Chaparral, Deserts Modoc, North Coast, Sierra Nevada, South Coast), as static maps, or as interactive maps.  For each tab, the scores can be viewed as the disribution of values or whether scores meet or do not meet the selected biointegrity goal. For the maps, only the most recent sample at a site is shown. The dotted red line in the plots shows the selected biointegrity goal for the relevant ASCI.  
+Score distributions for the ASCI can be viewed by site types (reference, intermediate, stressed), by PSA regions (Central Valley, Chaparral, Deserts Modoc, North Coast, Sierra Nevada, South Coast), as static maps, or as interactive maps.  For each tab, the scores can be viewed as the distribution of values or whether scores meet or do not meet the selected biointegrity goal. For the maps, only the most recent sample at a site is shown. The dotted red line in the plots shows the selected biointegrity goal for the relevant ASCI.  
 
 ### By Site types {.tabset .tabset-pills}
 
@@ -385,10 +397,11 @@ output$sitbox <- renderPlot({
   p <- ggplot(toplo, aes(x = sit2, y = scr)) + 
     geom_boxplot(outlier.size = 1, aes(fill = sit2), alpha = 0.7) + 
     geom_hline(aes(yintercept = bival), linetype = 'dashed', colour = 'tomato1', size = 1) +
-    facet_grid(ind ~ tax) +
+    facet_wrap(~tax) + #AH update
+    # facet_grid(ind ~ tax) +
     scale_fill_manual(values = ctcol) +
     scale_y_continuous('Index Score') + 
-    theme_minimal(base_family = 'serif', base_size = 16) +
+    theme_minimal(base_family = 'serif', base_size = 16) + 
     theme(
       axis.text.x = element_text(angle = 45, hjust = 1), 
       axis.title.x = element_blank(), 
@@ -399,7 +412,7 @@ output$sitbox <- renderPlot({
   return(p)
   
 })
-plotOutput('sitbox', height = '600px') %>% withSpinner()
+plotOutput('sitbox', height = '400px') %>% withSpinner() #AH udpate, height 600px previously 
 
 # table of ranges
 wellPanel(id = "tabsit", style = "overflow-y:scroll; height:400px; max-height: 400px; background-color:#ffffff", 
@@ -411,6 +424,7 @@ wellPanel(id = "tabsit", style = "overflow-y:scroll; height:400px; max-height: 4
 
 ```{r}
 # proportion met/not met by site type
+# sitpro <- renderPlot({
 output$sitpro <- renderPlot({
   
   # input
@@ -429,7 +443,8 @@ output$sitpro <- renderPlot({
   
   p <- ggplot(toplo, aes(x = sit2, y = n, fill = Goal)) +
     geom_bar(stat = 'identity', position = 'fill', colour = 'grey', alpha = 0.8, width = 0.75) + 
-    facet_grid(ind ~ tax) + 
+    facet_wrap(~tax) + #AH update
+    # facet_grid(ind ~ tax) + 
     scale_y_continuous('Proportion', expand = c(0, 0)) +
     scale_fill_manual(values = bicol) + 
     theme_minimal(base_family = 'serif', base_size = 16) +
@@ -445,7 +460,7 @@ output$sitpro <- renderPlot({
   return(p)
   
 })
-plotOutput('sitpro', height = '600px') %>% withSpinner()
+plotOutput('sitpro', height = '400px') %>% withSpinner() #AH update, size 600 px previously
 ```
 
 ### By PSA regions {.tabset .tabset-pills}
@@ -454,6 +469,7 @@ plotOutput('sitpro', height = '600px') %>% withSpinner()
 
 ```{r}
 # boxplot by PSA
+# psabox <- renderPlot({
 output$psabox <- renderPlot({
 
   # input
@@ -467,7 +483,8 @@ output$psabox <- renderPlot({
   p <- ggplot(toplo, aes(x = PSA6, y = scr)) + 
     geom_boxplot(outlier.size = 1, alpha = 0.6, fill = 'lightblue') + 
     geom_hline(aes(yintercept = bival), linetype = 'dashed', colour = 'tomato1', size = 1) +
-    facet_grid(ind ~ tax) +
+    facet_wrap(~tax) + #AH update
+    # facet_grid(ind ~ tax) +
     scale_y_continuous('Index Score') + 
     theme_minimal(base_family = 'serif', base_size = 16) +
     theme(
@@ -492,6 +509,7 @@ wellPanel(id = "tabpsa", style = "overflow-y:scroll; height:400px; max-height: 4
 
 ```{r}
 # proportion met/not met by PSA
+# psapro <- renderPlot({
 output$psapro <- renderPlot({
   
   # input
@@ -510,7 +528,8 @@ output$psapro <- renderPlot({
   
   p <- ggplot(toplo, aes(x = PSA6, y = n, fill = Goal)) +
     geom_bar(stat = 'identity', position = 'fill', colour = 'grey', alpha = 0.8, width = 0.75) + 
-    facet_grid(ind ~ tax) + 
+    facet_wrap(~tax) + #AH update
+    # facet_grid(ind ~ tax) + 
     scale_y_continuous('Proportion', expand = c(0, 0)) +
     scale_fill_manual(values = bicol) + 
     theme_minimal(base_family = 'serif', base_size = 16) +
@@ -535,6 +554,7 @@ plotOutput('psapro', height = '600px') %>% withSpinner()
 #### Scores
 
 ```{r}
+# stamapscr <- renderPlot({
 output$stamapscr <- renderPlot({
   
   # input
@@ -543,7 +563,8 @@ output$stamapscr <- renderPlot({
   p <- ggplot(mapsta) + 
     geom_sf(data = psa, fill = NA) +
     geom_point(aes(x = lon, y = lat, colour = scr), alpha = 0.7, size = 1.5) +
-    facet_grid(ind ~ tax) +
+    facet_wrap(~tax) + #AH update
+    # facet_grid(ind ~ tax) +
     coord_sf() +
     scale_colour_gradientn('ASCI score', colors = sccol) +
     theme_void(base_family = 'serif', base_size = 16) + 
@@ -557,12 +578,13 @@ output$stamapscr <- renderPlot({
   return(p)
   
 })
-plotOutput('stamapscr', height = '800px') %>% withSpinner()
+plotOutput('stamapscr', height = '400px') %>% withSpinner() #AH update, size 800 px previously 
 ```
 
 #### Biointegrity goal
 
 ```{r}
+# stamappss <- renderPlot({
 output$stamappss <- renderPlot({
   
   # input
@@ -571,7 +593,8 @@ output$stamappss <- renderPlot({
   p <- ggplot(mapsta) + 
     geom_sf(data = psa, fill = NA) +
     geom_point(aes(x = lon, y = lat, colour = scrcat), alpha = 0.7, size = 1.5) +
-    facet_grid(ind ~ tax) +
+    facet_wrap(~tax) + #AH update
+    # facet_grid(ind ~ tax) +
     coord_sf() +
     scale_colour_manual('Biointegrity goal', values = bicol) + 
     theme_void(base_family = 'serif', base_size = 16) + 
@@ -593,7 +616,7 @@ plotOutput('stamappss', height = '800px') %>% withSpinner()
 column(12, 
   
        column(6, 
-              selectInput('indsel', 'Select index:', choices = c('O/E', 'MMI', 'O/E + MMI'))
+              selectInput('indsel', 'Select index:', choices = c('D_ASCI', 'H_ASCI', 'S_ASCI'))
        ),
        
        column(6, 
@@ -607,6 +630,7 @@ column(12,
 
 ```{r}
 # scrmap
+# scrmap <- renderLeaflet({
 output$scrmap <- renderLeaflet({
   
   # input
@@ -642,6 +666,7 @@ leafletOutput('scrmap', height = 700) %>% withSpinner()
 ```{r}
 
 # met/not met map
+# catmap <- renderLeaflet({
 output$catmap <- renderLeaflet({
 
   # input
@@ -681,6 +706,7 @@ selectInput('evvr', 'Select environmental variable:', choices = evvar)
 ```
 
 ```{r}
+# evplo <- renderPlot({
 output$evplo <- renderPlot({
 
   # input
@@ -750,6 +776,7 @@ selectInput('olin', 'Select index for comparison:', choices = c('CSCI', 'D18', '
 ```
 
 ```{r}
+# olplo <- renderPlot({
 output$olplo <- renderPlot({
   
   # input
