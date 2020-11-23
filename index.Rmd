@@ -236,13 +236,13 @@ mapdyn <- reactive({
   
   # input
   indsel <- input$indsel
-  taxsel <- input$taxsel
+  # taxsel <- input$taxsel #AH addition: removing taxa filter along with widget, just need index filter
   mapsta <- mapsta()
   
   # filter by index and taxa
   out <- mapsta %>% 
     filter(ind %in% indsel) %>% 
-    filter(tax %in% taxsel) %>% 
+    # filter(tax %in% taxsel) %>% #AH addition: removing taxa filter, just need index filter
     st_as_sf(coords = c('lon', 'lat'), crs = prj)
   
   return(out)
@@ -400,7 +400,8 @@ output$sitbox <- renderPlot({
     facet_wrap(~tax) + #AH update
     # facet_grid(ind ~ tax) +
     scale_fill_manual(values = ctcol) +
-    scale_y_continuous('Index Score') + 
+    scale_y_continuous('Index Score') +
+    scale_x_discrete(limits = c("Reference", "Intermediate", "Stressed"))+ #AH addition, reorder
     theme_minimal(base_family = 'serif', base_size = 16) + 
     theme(
       axis.text.x = element_text(angle = 45, hjust = 1), 
@@ -414,10 +415,10 @@ output$sitbox <- renderPlot({
 })
 plotOutput('sitbox', height = '400px') %>% withSpinner() #AH udpate, height 600px previously 
 
-# table of ranges
-wellPanel(id = "tabsit", style = "overflow-y:scroll; height:400px; max-height: 400px; background-color:#ffffff", 
-  renderTable({ascitabsit()})
-)
+# table of ranges --- AH addition, remove table for now
+# wellPanel(id = "tabsit", style = "overflow-y:scroll; height:400px; max-height: 400px; background-color:#ffffff", 
+#   renderTable({ascitabsit()})
+# )
 ```
 
 #### Biointegrity goal
@@ -446,6 +447,7 @@ output$sitpro <- renderPlot({
     facet_wrap(~tax) + #AH update
     # facet_grid(ind ~ tax) + 
     scale_y_continuous('Proportion', expand = c(0, 0)) +
+    scale_x_discrete(limits = c("Reference", "Intermediate", "Stressed"))+ #AH addition, reorder
     scale_fill_manual(values = bicol) + 
     theme_minimal(base_family = 'serif', base_size = 16) +
     theme(
@@ -496,13 +498,13 @@ output$psabox <- renderPlot({
   
   return(p)
   
-}, height = 600)
-plotOutput('psabox', height = '600px') %>% withSpinner()
+}, height = 400) #AH update, size 600 previously
+plotOutput('psabox', height = '400px') %>% withSpinner() #AH update, size 600 px previously
 
-# table of ranges
-wellPanel(id = "tabpsa", style = "overflow-y:scroll; height:400px; max-height: 400px; background-color:#ffffff", 
-  renderTable({ascitabpsa()})
-)
+# table of ranges --- AH addition, remove table for now
+# wellPanel(id = "tabpsa", style = "overflow-y:scroll; height:400px; max-height: 400px; background-color:#ffffff", 
+#   renderTable({ascitabpsa()})
+# )
 ```
 
 #### Biointegrity goal
@@ -545,7 +547,7 @@ output$psapro <- renderPlot({
   return(p)
   
 })
-plotOutput('psapro', height = '600px') %>% withSpinner()
+plotOutput('psapro', height = '400px') %>% withSpinner() #AH update, size 600 px previously
 
 ```
 
@@ -607,7 +609,7 @@ output$stamappss <- renderPlot({
   return(p)
   
 })
-plotOutput('stamappss', height = '800px') %>% withSpinner()
+plotOutput('stamappss', height = '400px') %>% withSpinner() #AH update, size 800 px previously 
 ```
 
 ### Dynamic Maps {.tabset .tabset-pills}
@@ -617,11 +619,12 @@ column(12,
   
        column(6, 
               selectInput('indsel', 'Select index:', choices = c('D_ASCI', 'H_ASCI', 'S_ASCI'))
-       ),
-       
-       column(6, 
-              selectInput('taxsel', 'Select group:', choices = list('Diatom', 'Soft-bodied', 'Hybrid'))
-       )
+       ) #AH addition, remove select group widget as redundant
+       # ,
+       # 
+       # column(6, 
+       #        selectInput('taxsel', 'Select group:', choices = list('Diatom', 'Soft-bodied', 'Hybrid'))
+       # )
   
 )
 ```
@@ -750,7 +753,8 @@ output$evplo <- renderPlot({
     geom_point(alpha = 0.7, size = 1.3) +
     geom_smooth(method = 'lm', se = FALSE) +
     geom_hline(aes(yintercept = bival), linetype = 'dashed', colour = 'tomato1', size = 1) +
-    facet_wrap(indnew ~ tax, ncol = 3) +
+    # facet_wrap(indnew ~ tax, ncol = 3) +
+    facet_wrap(~ indnew, ncol = 3) + #AH udpate
     scale_y_continuous('ASCI score', expand = c(0, 0), limits = c(0, ymax)) +  
     scale_x_continuous(xlab) +
     pbase
@@ -794,7 +798,8 @@ output$olplo <- renderPlot({
     geom_point(alpha = 0.6, size = 1) +
     geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
     geom_smooth(method = 'lm', se = F) +
-    facet_grid(indnew ~ tax) +
+    facet_wrap(~indnew)+ #AH update
+    # facet_grid(indnew ~ tax) +
     scale_y_continuous('ASCI Score', limits = lms) +
     scale_x_continuous(xlab, limits = lms) +
     pbase 
@@ -803,7 +808,8 @@ output$olplo <- renderPlot({
     geom_point(alpha = 0.6, size = 1) +
     geom_hline(yintercept = 0, linetype = 'dashed') +
     geom_smooth(method = 'lm', se = F) +
-    facet_grid(indnew ~ tax) +
+    # facet_grid(indnew ~ tax) +
+    facet_wrap(~indnew)+ #AH update
     scale_y_continuous(ylab) +
     scale_x_continuous(xlab, limits = lms) +
     pbase
@@ -812,6 +818,6 @@ output$olplo <- renderPlot({
   plot_layout(ncol = 1)
   
 })
-plotOutput('olplo', height = '950px') %>% withSpinner()
+plotOutput('olplo', height = '600px') %>% withSpinner() #AH update, 950px previously
 ```
 
