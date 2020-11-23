@@ -702,7 +702,7 @@ leafletOutput('catmap', height = 700) %>% withSpinner()
 
 ## Relationships with environmental variables
 
-These plots show simple correlations of index scores with selected environmental variables.  The top row of plots show relationships of the California Stream Condition Index (CSCI, macroinvertebrate infex), D18 (southern California diatom index), S2 (southern California soft-bodied algal index), and H20 (southern California hybrid algal index) with the selected variable.  The bottom panels shows relationships of the ASCI scores with the same variable.  The linear fit between the index and the environmental variable is shown in blue and the selected biointegrity goal for each ASCI index is shown as the dotted red line. R-squared values (proportion of explained variance) for each panel are shown in parentheses.
+These plots show simple correlations of index scores with selected environmental variables.  The top row of plots show relationships of the California Stream Condition Index (CSCI, macroinvertebrate index), D18 (southern California diatom index), S2 (southern California soft-bodied algal index), and H20 (southern California hybrid algal index) with the selected variable.  The bottom panels shows relationships of the ASCI scores with the same variable.  The linear fit between the index and the environmental variable is shown in blue and the selected biointegrity goal for each ASCI index is shown as the dotted red line. R-squared values (proportion of explained variance) for each panel are shown in parentheses.
 
 ```{r}
 selectInput('evvr', 'Select environmental variable:', choices = evvar)
