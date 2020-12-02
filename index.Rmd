@@ -397,6 +397,7 @@ output$sitbox <- renderPlot({
   p <- ggplot(toplo, aes(x = sit2, y = scr)) + 
     geom_boxplot(outlier.size = 1, aes(fill = sit2), alpha = 0.7) + 
     geom_hline(aes(yintercept = bival), linetype = 'dashed', colour = 'tomato1', size = 1) +
+    geom_hline(aes(yintercept = 1), linetype = 'dashed', colour = 'grey55', size = 1) + #AH addition, reference y = 1 line
     facet_wrap(~tax) + #AH update
     # facet_grid(ind ~ tax) +
     scale_fill_manual(values = ctcol) +
@@ -485,6 +486,7 @@ output$psabox <- renderPlot({
   p <- ggplot(toplo, aes(x = PSA6, y = scr)) + 
     geom_boxplot(outlier.size = 1, alpha = 0.6, fill = 'lightblue') + 
     geom_hline(aes(yintercept = bival), linetype = 'dashed', colour = 'tomato1', size = 1) +
+    geom_hline(aes(yintercept = 1), linetype = 'dashed', colour = 'grey55', size = 1) + #AH addition, reference y = 1 line
     facet_wrap(~tax) + #AH update
     # facet_grid(ind ~ tax) +
     scale_y_continuous('Index Score') + 
@@ -753,6 +755,7 @@ output$evplo <- renderPlot({
     geom_point(alpha = 0.7, size = 1.3) +
     geom_smooth(method = 'lm', se = FALSE) +
     geom_hline(aes(yintercept = bival), linetype = 'dashed', colour = 'tomato1', size = 1) +
+    geom_hline(aes(yintercept = 1), linetype = 'dashed', colour = 'grey55', size = 1) + #AH addition, reference y = 1 line
     # facet_wrap(indnew ~ tax, ncol = 3) +
     facet_wrap(~ indnew, ncol = 3) + #AH udpate
     scale_y_continuous('ASCI score', expand = c(0, 0), limits = c(0, ymax)) +  
