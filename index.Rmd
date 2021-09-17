@@ -401,7 +401,7 @@ output$sitbox <- renderPlot({
     facet_wrap(~tax) + #AH update
     # facet_grid(ind ~ tax) +
     scale_fill_manual(values = ctcol) +
-    scale_y_continuous('Index Score') +
+    scale_y_continuous('Index Score', limits = c(0,1.5),breaks = seq(0, 1.5, by = 0.5)) +  #AH edit, making ASCI yaxis labels consistent 
     scale_x_discrete(limits = c("Reference", "Intermediate", "Stressed"))+ #AH addition, reorder
     theme_minimal(base_family = 'serif', base_size = 16) + 
     theme(
@@ -724,26 +724,25 @@ output$evplo <- renderPlot({
   # evvr name
   xlab <- names(evvar[evvar %in% evvr])
   
-  ## prep plot data from combined object
-
+  # prep plot data from combined object
   # old indices
-  toplo_old <- supprct %>% 
-    left_join(suppdatr2, by = 'ind') %>% 
-    mutate(r2 = paste0('(', r2, ')')) %>% 
+  toplo_old <- supprct %>%
+    left_join(suppdatr2, by = 'ind') %>%
+    mutate(r2 = paste0('(', r2, ')')) %>%
     unite('ind', ind, r2, sep = ' ')
-  
-  # get ymax from first plot for second
-  ymax <- toplo_old %>% 
-    pull(scr) %>% 
-    max(na.rm = T)
 
-  pold <- ggplot(toplo_old, aes_string(x = evvr, y = 'scr')) +
-    geom_point(alpha = 0.7, size = 1.3) +
-    geom_smooth(method = 'lm', se = FALSE) +
-    facet_wrap( ~ ind, ncol = 4) +
-    scale_y_continuous('Index score', expand = c(0, 0), limits = c(0, ymax)) +  
-    scale_x_continuous(xlab) +
-    pbase
+  # # get ymax from first plot for second
+  # ymax <- toplo_old %>%
+  #   pull(scr) %>%
+  #   max(na.rm = T)
+  # 
+  # pold <- ggplot(toplo_old, aes_string(x = evvr, y = 'scr')) +
+  #   geom_point(alpha = 0.7, size = 1.3) +
+  #   geom_smooth(method = 'lm', se = FALSE) +
+  #   facet_wrap( ~ ind, ncol = 4) +
+  #   scale_y_continuous('Index score', expand = c(0, 0), limits = c(0, ymax)) +  
+  #   scale_x_continuous(xlab) +
+  #   pbase
   
   # new indices
   toplo_new <- cmbdat %>% 
@@ -752,26 +751,29 @@ output$evplo <- renderPlot({
     unite('indnew', indnew, r2, sep = ' ')
 
   pnew <- ggplot(toplo_new, aes_string(x = evvr, y = 'scrnew')) +
-    geom_point(alpha = 0.7, size = 1.3) +
+    geom_point(alpha = 0.3, size = 1.3) +
     geom_smooth(method = 'lm', se = FALSE) +
     geom_hline(aes(yintercept = bival), linetype = 'dashed', colour = 'tomato1', size = 1) +
     geom_hline(aes(yintercept = 1), linetype = 'dashed', colour = 'grey55', size = 1) + #AH addition, reference y = 1 line
     # facet_wrap(indnew ~ tax, ncol = 3) +
     facet_wrap(~ indnew, ncol = 3) + #AH udpate
-    scale_y_continuous('ASCI score', expand = c(0, 0), limits = c(0, ymax)) +  
+    scale_y_continuous('ASCI Score', limits = c(0,1.5),breaks = seq(0, 1.5, by = 0.5)) +
+    # scale_y_continuous('ASCI score', expand = c(0, 0), limits = c(0, ymax)) +  #AH edit, making ASCI yaxis labels consistent 
     scale_x_continuous(xlab) +
     pbase
 
   if(evvr %in% c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL')){
-    pold <- pold + scale_x_log10(xlab)   
+    # pold <- pold + scale_x_log10(xlab)   #AH edit, don't display old indices
     pnew <- pnew + scale_x_log10(xlab) 
   }
-  
-  pold + pnew +
-  plot_layout(ncol = 1, heights = c(0.2, 1))
+  # AH edit, don't display old indices 
+  pnew 
+  # + plot_layout(ncol = 1, heights = c(0.5))
+  # pold + pnew +
+  # plot_layout(ncol = 1, heights = c(0.2, 1))
   
 })
-plotOutput('evplo', height = '800px') %>% withSpinner()
+plotOutput('evplo', height = '400px') %>% withSpinner()
 ```
 
 ## Comparisons with existing indices
@@ -779,7 +781,8 @@ plotOutput('evplo', height = '800px') %>% withSpinner()
 These plots compare ASCI scores with existing indices including the California Stream Condition Index (CSCI, macroinvertebrate infex), D18 (southern California diatom index), S2 (southern California soft-bodied algal index), and H20 (southern California hybrid algal index.  The menu can be used to select the existing index to compare to the ASCI. The top plots show simple correlations between ASCI scores and the selected index, whereas the bottom plot shows the difference between ASCI scores and selected index compared to observed scores for the selected index.  Blue lines shows the linear fit in each plot, whereas the dotted line shows the 1:1 line in the top plots and the zero line in the bottom plots.
 
 ```{r}
-selectInput('olin', 'Select index for comparison:', choices = c('CSCI', 'D18', 'S2', 'H20'))
+selectInput('olin', 'Select index for comparison:', choices = c('CSCI')) #AH update, just want to compare with CSCI now
+# selectInput('olin', 'Select index for comparison:', choices = c('CSCI', 'D18', 'S2', 'H20'))
 ```
 
 ```{r}
@@ -798,7 +801,7 @@ output$olplo <- renderPlot({
     filter(!is.na(scr))
  
   p1 <- ggplot(toplo, aes(x = scr, y = scrnew)) +
-    geom_point(alpha = 0.6, size = 1) +
+    geom_point(alpha = 0.3, size = 1) +
     geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
     geom_smooth(method = 'lm', se = F) +
     facet_wrap(~indnew)+ #AH update
@@ -808,7 +811,7 @@ output$olplo <- renderPlot({
     pbase 
 
   p2 <- ggplot(toplo, aes(x = scr, y = scrdif)) +
-    geom_point(alpha = 0.6, size = 1) +
+    geom_point(alpha = 0.3, size = 1) +
     geom_hline(yintercept = 0, linetype = 'dashed') +
     geom_smooth(method = 'lm', se = F) +
     # facet_grid(indnew ~ tax) +
