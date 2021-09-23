@@ -36,7 +36,7 @@ library(bindrcpp)
 library(leafem)
 
 # data
-data(ascidat)
+data(ascidat) # AH added channel engineering data to ascidat 
 data(ascithr)
 data(suppdat)
 data(psa)
