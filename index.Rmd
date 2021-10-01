@@ -272,7 +272,7 @@ cmbdat <- reactive({
     mutate(
       scrdif = scrnew - scr
     ) %>% 
-    select(one_of(c('sampleid', 'scrnew', 'indnew', 'ptile', 'bival', 'ind', 'tax', 'scr', 'scrdif', evvr)))
+    select(one_of(c('sampleid', 'scrnew', 'indnew', 'ptile', 'bival', 'ind', 'tax', 'scr', 'scrdif', 'channeltype', evvr))) #KG addition, 'channeltype'
   
   return(out)
   
@@ -771,9 +771,38 @@ output$evplo <- renderPlot({
   # + plot_layout(ncol = 1, heights = c(0.5))
   # pold + pnew +
   # plot_layout(ncol = 1, heights = c(0.2, 1))
+
+  
+#KG addition, new graph with channeltype variable
+  pnew_chann <- ggplot(toplo_new, aes_string(x = evvr, y = 'scrnew', color = 'channeltype')) +
+    geom_point(alpha = 0.5, size = 2.3, aes(shape = channeltype)) +
+    geom_smooth(method = 'lm', se = FALSE) +
+    geom_hline(aes(yintercept = bival), linetype = 'dashed', colour = 'tomato1', size = 1) +
+    geom_hline(aes(yintercept = 1), linetype = 'dashed', colour = 'grey55', size = 1) + #AH addition, reference y = 1 line
+    # facet_wrap(indnew ~ tax, ncol = 3) +
+    facet_wrap(~ indnew, ncol = 3) + #AH udpate
+    scale_y_continuous('ASCI Score', limits = c(0,1.5),breaks = seq(0, 1.5, by = 0.5)) +
+    # scale_y_continuous('ASCI score', expand = c(0, 0), limits = c(0, ymax)) +  #AH edit, making ASCI yaxis labels consistent
+    scale_x_continuous(xlab) +
+    scale_color_manual(values = c("#e66101", "#1b9e77"), na.translate = F) + # na.translate removes NA factor from legend
+    guides(shape = FALSE) + # remove shape factor from legend
+    labs(color = "Channel Type:") +
+    pbase
+
+  if(evvr %in% c('Phosphorus_as_P_mgPerL', 'Nitrogen_Total_mgPerL')){
+    # pold <- pold + scale_x_log10(xlab)   #AH edit, don't display old indices
+    pnew_chann <- pnew_chann + scale_x_log10(xlab) 
+  }
+  
+  pnew_chann
+ 
+
+  #KG addition, display both sets of plots  
+  pnew + pnew_chann +
+  plot_layout(ncol = 1)
   
 })
-plotOutput('evplo', height = '400px') %>% withSpinner()
+plotOutput('evplo', height = '700px') %>% withSpinner()
 ```
 
 ## Comparisons with existing indices

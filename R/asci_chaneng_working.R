@@ -131,7 +131,7 @@ ascidat_add <- ascidat %>%
 
 
 
-ascidat_supp <- ascidat_add %>%
+ascidat_supp <- ascidat %>%
   left_join(suppdat %>% select(-ind, -scr, -sit1), by = c("sampleid" = "sampleid"))%>%
   distinct(sampleid,ind, .keep_all = TRUE)
 
