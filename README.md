@@ -15,5 +15,8 @@ All data created in `R/dat_proc.R` unless otherwise noted.
 * `suppdat.RDAta` data frame of supplementary data for comparison with ASCI
 
 
+### Metadata
+Resources: <a href="https://github.com/SCCWRP/ASCIsop">SOP</a><br>
+Contact: <a href="https://www.sccwrp.org/about/staff/susanna-theroux/">Susanna Theroux</a><br>
 
 
