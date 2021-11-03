@@ -256,7 +256,7 @@ cmbdat <- reactive({
   ascicat <- ascicat()
   supprct <- supprct()
   evvr <- input$evvr
-  olin <- input$olin
+  olin <- "CSCI"#input$olin # getting rid of index choices since CSCI is only choice
 
   # supp data to join
   suppjn <- supprct %>% 
@@ -808,54 +808,52 @@ output$evplo <- renderPlot({
 plotOutput('evplo', height = '700px') %>% withSpinner()
 ```
 
-## Comparisons with existing indices
-
-These plots compare ASCI scores with the macroinvertebrate California Stream Condition Index (CSCI) scores (Mazor et al., 2016). The top plots show simple correlations between ASCI scores and the CSCI, whereas the bottom plot shows the difference between ASCI and CSCI scores. Blue lines show the linear fit in each plot, whereas the dotted line shows the 1:1 line in the top plots and the zero line in the bottom plots.
+<!--## Comparisons with existing indices -->
 
 ```{r}
-selectInput('olin', 'Select index for comparison:', choices = c('CSCI')) #AH update, just want to compare with CSCI now
+#selectInput('olin', 'Select index for comparison:', choices = c('CSCI')) #AH update, just want to compare with CSCI now
 # selectInput('olin', 'Select index for comparison:', choices = c('CSCI', 'D18', 'S2', 'H20'))
 ```
 
 ```{r}
 # olplo <- renderPlot({
-output$olplo <- renderPlot({
-  
-  # input
-  cmbdat <- cmbdat()
-  olin <- input$olin
-
-  lms <- c(0, 1.6)
-  xlab <- paste(olin, 'Score')
-  ylab <- paste('ASCI -', olin, 'Score')
-
-  toplo <- cmbdat %>% 
-    filter(!is.na(scr))
- 
-  p1 <- ggplot(toplo, aes(x = scr, y = scrnew)) +
-    geom_point(alpha = 0.3, size = 1) +
-    geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
-    geom_smooth(method = 'lm', se = F) +
-    facet_wrap(~indnew)+ #AH update
-    # facet_grid(indnew ~ tax) +
-    scale_y_continuous('ASCI Score', limits = lms) +
-    scale_x_continuous(xlab, limits = lms) +
-    pbase 
-
-  p2 <- ggplot(toplo, aes(x = scr, y = scrdif)) +
-    geom_point(alpha = 0.3, size = 1) +
-    geom_hline(yintercept = 0, linetype = 'dashed') +
-    geom_smooth(method = 'lm', se = F) +
-    # facet_grid(indnew ~ tax) +
-    facet_wrap(~indnew)+ #AH update
-    scale_y_continuous(ylab) +
-    scale_x_continuous(xlab, limits = lms) +
-    pbase
-  
-  p1 + p2 +
-  plot_layout(ncol = 1)
-  
-})
-plotOutput('olplo', height = '600px') %>% withSpinner() #AH update, 950px previously
+# output$olplo <- renderPlot({
+#   
+#   # input
+#   cmbdat <- cmbdat()
+#   olin <- input$olin
+# 
+#   lms <- c(0, 1.6)
+#   xlab <- paste(olin, 'Score')
+#   ylab <- paste('ASCI -', olin, 'Score')
+# 
+#   toplo <- cmbdat %>% 
+#     filter(!is.na(scr))
+#  
+#   p1 <- ggplot(toplo, aes(x = scr, y = scrnew)) +
+#     geom_point(alpha = 0.3, size = 1) +
+#     geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
+#     geom_smooth(method = 'lm', se = F) +
+#     facet_wrap(~indnew)+ #AH update
+#     # facet_grid(indnew ~ tax) +
+#     scale_y_continuous('ASCI Score', limits = lms) +
+#     scale_x_continuous(xlab, limits = lms) +
+#     pbase 
+# 
+#   p2 <- ggplot(toplo, aes(x = scr, y = scrdif)) +
+#     geom_point(alpha = 0.3, size = 1) +
+#     geom_hline(yintercept = 0, linetype = 'dashed') +
+#     geom_smooth(method = 'lm', se = F) +
+#     # facet_grid(indnew ~ tax) +
+#     facet_wrap(~indnew)+ #AH update
+#     scale_y_continuous(ylab) +
+#     scale_x_continuous(xlab, limits = lms) +
+#     pbase
+#   
+#   p1 + p2 +
+#   plot_layout(ncol = 1)
+#   
+# })
+# plotOutput('olplo', height = '600px') %>% withSpinner() #AH update, 950px previously
 ```
 
